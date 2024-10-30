@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>倒计时与番茄钟</title>
+<style>
+  /* 默认主题 */
+  :root {
+    --bg-color: #282c34;
+    --text-color: #fff;
+    --border-color: #fff;
+  }
+
+  /* 深色主题 */
+  .dark-theme {
+    --bg-color: #1c2025;
+    --text-color: #eaeaea;
+    --border-color: #606468;
+  }
+
+  /* 浅色主题 */
+  .light-theme {
+    --bg-color: #f0f0f0;
+    --text-color: #333;
+    --border-color: #ddd;
+  }
+
+  body {
+    font-family: Arial, sans-serif;
+    background-size: cover;
+    color: var(--text-color);
+    background-color: var(--bg-color);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+    overflow: hidden;
+  }
+  .main-content {
+    display: flex;
+    width: 100%;
+    height: 90%;
+  }
+  .block {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    border: 2px solid var(--border-color);
+    padding: 20px;
+  }
+  #hitokoto {
+    width: 100%;
+    text-align: center;
+    height: 10%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  button {
+    margin: 5px;
+    padding: 10px 20px;
+    font-size: 16px;
+  }
+  .tooltip {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background-color: rgba(0, 0, 0, 0.7);
+    color: var(--text-color);
+    padding: 10px;
+    border-radius: 5px;
+  }
+</style>
+</head>
+<body>
+<div class="tooltip">欢迎回来！专注你的目标。</div>
+<div class="main-content">
+  <div id="examCountdown" class="block">倒计时加载中...</div>
+  <div id="pomodoro" class="block">25:00</div>
+</div>
+<div id="hitokoto">一言加载中...</div>
+<div>
+  <button onclick="startPomodoro();">开始/继续番茄钟</button>
+  <button onclick="pausePomodoro();">暂停番茄钟</button>
+  <button onclick="setBackgroundImage();">更换背景图</button>
+  <button onclick="setCustomCountdown();">设置自定义倒计时</button>
+</div>
+<div>
+  <select id="themeSelector" onchange="changeTheme(this.value);">
+    <option value="default">默认主题</option>
+    <option value="dark">深色主题</option>
+    <option value="light">浅色主题</option>
+  </select>
+</div>
+
+<script>
+let workSessions = 0;
+
+function fetchHitokoto() {
+  fetch('https://v1.hitokoto.cn')
+    .then(response => response.json())
+    .then(data => {
+      document.getElementById('hitokoto').innerText = data.hitokoto + " —— " + data.from;
+    })
+    .catch(console.error);
+}
+
+function setCustomCountdown() {
+  const customDate = prompt("默认考研日期，请输入倒计时的目标日期 (格式: YYYY-MM-DD):");
+  if (customDate) {
+    localStorage.setItem('customCountdownDate', customDate);
+    updateExamCountdown();
+  }
+}
+
+function updateExamCountdown() {
+  let countdownDate = localStorage.getItem('customCountdownDate');
+  if (!countdownDate) {
+    countdownDate = '2024-12-23'; // 默认考研日期
+  }
+  const targetDate = new Date(countdownDate);
+  const currentDate = new Date();
+  const timeDiff = targetDate - currentDate;
+  const days = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
+  document.getElementById('examCountdown').innerText = `距离目标日期还有 ${days} 天`;
+}
+
+let pomodoroTimer = null;
+let isWorkTime = true;
+let timeLeft = 25 * 60;
+
+function startPomodoro() {
+  if (!pomodoroTimer) {
+    pomodoroTimer = setInterval(updatePomodoro, 1000);
+  }
+}
+
+function pausePomodoro() {
+  clearInterval(pomodoroTimer);
+  pomodoroTimer = null;
+}
+
+function updatePomodoro() {
+  if (timeLeft <= 0) {
+    if (isWorkTime) {
+      workSessions++;
+      isWorkTime = false;
+      timeLeft = (workSessions % 4 === 0) ? 15 * 60 : 5 * 60;
+      alert('工作结束，开始休息！');
+    } else {
+      isWorkTime = true;
+      timeLeft = 25 * 60;
+      alert('休息结束，开始工作！');
+    }
+  } else {
+    timeLeft--;
+    document.getElementById('pomodoro').innerText = isWorkTime ? `工作时间: ${Math.floor(timeLeft / 60)}:${(timeLeft % 60).toString().padStart(2, '0')}` : `休息时间: ${Math.floor(timeLeft / 60)}:${(timeLeft % 60).toString().padStart(2, '0')}`;
+  }
+}
+
+function setBackgroundImage() {
+  const imageUrl = prompt("请输入新的背景图片URL:");
+  if (imageUrl) {
+    document.body.style.backgroundImage = `url('${imageUrl}')`;
+    localStorage.setItem('backgroundImage', imageUrl);
+  }
+}
+
+function loadBackgroundImage() {
+  const imageUrl = localStorage.getItem('backgroundImage');
+  if (imageUrl) {
+    document.body.style.backgroundImage = `url('${imageUrl}')`;
+  }
+}
+
+function changeTheme(themeName) {
+  document.body.className = themeName + '-theme';
+  localStorage.setItem('selectedTheme', themeName);
+}
+
+function loadTheme() {
+  const selectedTheme = localStorage.getItem('selectedTheme') || 'default';
+  changeTheme(selectedTheme);
+  document.getElementById('themeSelector').value = selectedTheme;
+}
+
+window.onload = function() {
+  loadBackgroundImage();
+  loadTheme();
+  fetchHitokoto();
+  updateExamCountdown();
+};
+</script>
+</body>
+</html>
